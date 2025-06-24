@@ -1,25 +1,44 @@
 local log = require("leetcode.logger")
 local config = require("leetcode.config")
 
----@return "fzf" | "telescope"
+---@return "fzf" | "telescope" | "mini"
 local function resolve_provider()
-    ---@type string
-    local provider = config.user.picker.provider
+    ---@type string?
+    local provider_name = config.user.picker.provider -- Allow nil
 
-    if provider == nil then
-        local fzf_ok = pcall(require, "fzf-lua")
+    if provider_name then
+        -- Provider is specified
+        local require_ok, _ = pcall(require, provider_name)
+        if require_ok then
+            if provider_name == "fzf-lua" then
+                return "fzf"
+            elseif provider_name == "mini.pick" then
+                return "mini"
+            -- Add other specific normalizations if needed
+            else
+                return provider_name -- e.g., "telescope"
+            end
+        else
+            error(("specified picker provider not found: `%s`"):format(provider_name))
+        end
+    else
+        -- No provider specified, try fallbacks
+        local fzf_ok, _ = pcall(require, "fzf-lua")
         if fzf_ok then
             return "fzf"
         end
-        local telescope_ok = pcall(require, "telescope")
+
+        local telescope_ok, _ = pcall(require, "telescope")
         if telescope_ok then
             return "telescope"
         end
+
+        local mini_ok, _ = pcall(require, "mini.pick")
+        if mini_ok then
+            return "mini" -- Change "mini.pick" to "mini"
+        end
+
         error("no supported picker provider found")
-    else
-        local provider_ok = pcall(require, provider)
-        assert(provider_ok, ("specified picker provider not found: `%s`"):format(provider))
-        return provider == "fzf-lua" and "fzf" or provider
     end
 end
 
